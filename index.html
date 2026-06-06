@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🏙️ 都市大亨</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: #0a0a1a;
+    color: #eee;
+    overflow-x: hidden;
+    user-select: none;
+    height: 100vh;
+  }
+
+  /* 顶部栏 */
+  .top-bar {
+    background: linear-gradient(135deg, #0d1b2a, #1b2838);
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid rgba(255,255,255,0.06);
+    flex-wrap: wrap;
+    gap: 6px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .top-bar .title {
+    font-size: 18px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #f7971e, #ffd200);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .stats { display: flex; gap: 10px; flex-wrap: wrap; }
+  .stat {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    background: rgba(255,255,255,0.05);
+    padding: 4px 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .stat .icon { font-size: 16px; }
+  .stat .val { font-weight: 700; color: #fff; }
+  .stat.hp .val { color: #ef4444; }
+  .stat.coin .val { color: #fbbf24; }
+  .stat.diamond .val { color: #60a5fa; }
+  .stat.atk .val { color: #f97316; }
+
+  /* 主布局 */
+  .main-layout {
+    display: flex;
+    gap: 14px;
+    padding: 14px;
+    max-width: 1400px;
+    margin: 0 auto;
+    height: calc(100vh - 60px);
+  }
+  .left-panel { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .right-panel { width: 300px; flex-shrink: 0; overflow-y: auto; }
+
+  @media (max-width: 900px) {
+    .main-layout { flex-direction: column; height: auto; }
+    .right-panel { width: 100%; max-height: 400px; }
+  }
+
+  /* 游戏地图 - 绿色土地 */
+  .map-section { flex: 1; display: flex; flex-direction: column; }
+  .map-wrapper {
+    flex: 1;
+    background: linear-gradient(135deg, #1a3a1a, #2d5a2d);
+    border-radius: 16px;
+    padding: 16px;
+    border: 2px solid rgba(74, 222, 128, 0.15);
+    box-shadow: inset 0 0 60px rgba(0,50,0,0.3);
+    position: relative;
+    min-height: 400px;
+    display: flex;
+    flex-direction: column;
+  }
+  .map-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .map-header .title {
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.6);
+  }
+  .map-header .controls {
+    display: flex;
+    gap: 6px;
+  }
+  .map-header .controls button {
+    background: rgba(255,255,255,0.08);
+    border: none;
+    border-radius: 6px;
+    color: rgba(255,255,255,0.6);
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: 0.2s;
+  }
+  .map-header .controls button:hover {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+  }
+
+  .map-grid {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 4px;
+    flex: 1;
+    align-content: start;
+  }
+  .cell {
+    aspect-ratio: 1;
+    background: rgba(34, 197, 94, 0.15);
+    border-radius: 8px;
+    border: 1px solid rgba(34, 197, 94, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    transition: all 0.15s;
+    cursor: default;
+    position: relative;
+    min-height: 40px;
+  }
+  .cell.buildable { border-color: rgba(74, 222, 128, 0.15); }
+  .cell.player-cell {
+    background: rgba(96, 165, 250, 0.2);
+    border-color: rgba(96, 165, 250, 0.4);
+    box-shadow: 0 0 12px rgba(96, 165, 250, 0.2);
+    cursor: pointer;
+  }
+  .cell.npc-cell {
+    cursor: pointer;
+    animation: npcPulse 1.5s ease-in-out infinite;
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.4);
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.2);
+    font-size: 24px;
+  }
+  .cell.npc-cell.boss-cell {
+    animation: bossPulse 1.2s ease-in-out infinite;
+    background: rgba(147, 51, 234, 0.25);
+    border-color: rgba(147, 51, 234, 0.5);
+    box-shadow: 0 0 20px rgba(147, 51, 234, 0.35);
+    font-size: 28px;
+  }
+  @keyframes npcPulse {
+    0%,100% { box-shadow: 0 0 8px rgba(239,68,68,0.2); }
+    50% { box-shadow: 0 0 20px rgba(239,68,68,0.5); }
+  }
+  @keyframes bossPulse {
+    0%,100% { box-shadow: 0 0 12px rgba(147,51,234,0.3); }
+    50% { box-shadow: 0 0 30px rgba(147,51,234,0.6); }
+  }
+  .cell.has-building {
+    background: rgba(34, 197, 94, 0.08);
+  }
+  .cell .entity-hp {
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px;
+    color: rgba(255,255,255,0.5);
+    background: rgba(0,0,0,0.5);
+    padding: 0 4px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+
+  /* 信息栏 */
+  .info-bar {
+    display: flex;
+    gap: 12px;
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .info-bar .msg {
+    flex: 1;
+    font-size: 13px;
+    color: rgba(255,255,255,0.5);
+    min-height: 20px;
+  }
+  .info-bar .msg .hl { color: #fbbf24; }
+  .info-bar .msg .dmg { color: #f97316; }
+  .info-bar .msg .heal { color: #34d399; }
+
+  .btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+  .btn-gold { background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; }
+  .btn-blue { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; }
+  .btn-gray { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.06); }
+  .btn-gray:hover { background: rgba(255,255,255,0.12); color: #fff; }
+  .btn-red { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; }
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+  /* 右侧面板 */
+  .panel-box {
+    background: rgba(255,255,255,0.04);
+    border-radius: 14px;
+    padding: 14px;
+    border: 1px solid rgba(255,255,255,0.06);
+    margin-bottom: 10px;
+  }
+  .panel-box h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .panel-box h3 .sub { font-size: 11px; font-weight: 400; color: rgba(255,255,255,0.3); }
+
+  /* 商城 */
+  .shop-list { display: flex; flex-direction: column; gap: 6px; }
+  .shop-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px;
+    padding: 8px 12px;
+    border: 1px solid rgba(255,255,255,0.05);
+    transition: all 0.2s;
+  }
+  .shop-item .info { flex: 1; min-width: 0; }
+  .shop-item .name { font-size: 13px; font-weight: 600; }
+  .shop-item .desc { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 1px; }
+  .shop-item .price { font-size: 12px; color: #fbbf24; white-space: nowrap; margin: 0 8px; }
+  .shop-item .btn-buy {
+    padding: 4px 12px;
+    border: none;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #fff;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    transition: 0.2s;
+    white-space: nowrap;
+  }
+  .shop-item .btn-buy:hover { transform: scale(1.04); }
+  .shop-item .btn-buy:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+  /* 背包 */
+  .backpack-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 3px;
+  }
+  .bp-slot {
+    aspect-ratio: 1;
+    background: rgba(255,255,255,0.03);
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.04);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    min-height: 36px;
+    position: relative;
+    cursor: default;
+    transition: 0.2s;
+  }
+  .bp-slot.has-item {
+    background: rgba(96,165,250,0.08);
+    border-color: rgba(96,165,250,0.15);
+  }
+  .bp-slot.equipped {
+    background: rgba(251,191,36,0.12);
+    border-color: rgba(251,191,36,0.25);
+    box-shadow: 0 0 8px rgba(251,191,36,0.15);
+  }
+  .bp-slot .bp-tip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.9);
+    color: #fff;
+    padding: 4px 10px;
+    border-radius: 5px;
+    font-size: 11px;
+    white-space: nowrap;
+    z-index: 20;
+    pointer-events: none;
+  }
+  .bp-slot:hover .bp-tip { display: block; }
+  .bp-slot .eq-mark {
+    position: absolute;
+    top: 1px;
+    right: 2px;
+    font-size: 9px;
+    color: #fbbf24;
+  }
+
+  /* 制造 */
+  .craft-row { display: flex; gap: 6px; align-items: center; }
+  .craft-row input {
+    flex: 1;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: #fff;
+    font-size: 13px;
+    outline: none;
+    min-width: 80px;
+    font-family: inherit;
+  }
+  .craft-row input::placeholder { color: rgba(255,255,255,0.25); }
+  .craft-row input:focus { border-color: #6366f1; }
+  .btn-craft { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; }
+
+  .furniture-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 6px; }
+  .tag {
+    background: rgba(99,102,241,0.1);
+    border: 1px solid rgba(99,102,241,0.15);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 10px;
+    color: #a5b4fc;
+  }
+
+  /* 战斗日志 */
+  .log-box {
+    max-height: 80px;
+    overflow-y: auto;
+    font-size: 11px;
+    color: rgba(255,255,255,0.3);
+    margin-top: 6px;
+  }
+  .log-box::-webkit-scrollbar { width: 3px; }
+  .log-box::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+  .log-line { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.02); }
+
+  /* 弹窗 */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(6px);
+    z-index: 100;
+    justify-content: center;
+    align-items: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: linear-gradient(145deg, #1e293b, #0f172a);
+    border-radius: 22px;
+    padding: 32px 28px;
+    max-width: 380px;
+    width: 90%;
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+    animation: modalIn 0.25s ease;
+  }
+  @keyframes modalIn {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .modal .big-icon { font-size: 48px; margin-bottom: 10px; }
+  .modal h2 { font-size: 20px; margin-bottom: 6px; }
+  .modal p { color: rgba(255,255,255,0.5); font-size: 13px; margin-bottom: 14px; line-height: 1.6; }
+  .modal .btn { margin: 4px 6px; min-width: 80px; }
+
+  .equip-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(251,191,36,0.06);
+    border: 1px solid rgba(251,191,36,0.1);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: #fbbf24;
+  }
+
+  /* 提示 */
+  .weapon-drop { animation: goldGlow 1s ease; }
+  @keyframes goldGlow {
+    0% { box-shadow: 0 0 20px rgba(251,191,36,0.5); }
+    100% { box-shadow: 0 0 0 rgba(251,191,36,0); }
+  }
+</style>
+</head>
+<body>
+
+<!-- 顶部栏 -->
+<div class="top-bar">
+  <div class="title">🏙️ 都市大亨</div>
+  <div class="stats">
+    <div class="stat hp"><span class="icon">❤️</span><span class="val" id="hpDisplay">3</span></div>
+    <div class="stat coin"><span class="icon">🪙</span><span class="val" id="coinDisplay">1000</span></div>
+    <div class="stat diamond"><span class="icon">💎</span><span class="val" id="diamondDisplay">200</span></div>
+    <div class="stat atk"><span class="icon">⚔️</span><span class="val" id="atkDisplay">1</span></div>
+    <div class="stat" style="border-color:rgba(251,191,36,0.15);"><span class="icon">🎒</span><span class="val" id="bpDisplay">0/50</span></div>
+  </div>
+</div>
+
+<!-- 主布局 -->
+<div class="main-layout">
+  <div class="left-panel">
+    <!-- 绿色地图 -->
+    <div class="map-section">
+      <div class="map-wrapper">
+        <div class="map-header">
+          <div class="title">🌿 城镇地图 <span style="color:rgba(255,255,255,0.2);font-size:11px;">WASD / 方向键移动</span></div>
+          <div class="controls">
+            <button id="btnMode" class="btn-gray btn-sm">🏗️ 建筑模式</button>
+          </div>
+        </div>
+        <div class="map-grid" id="mapGrid"></div>
+        <div class="info-bar">
+          <div class="msg" id="gameMsg">💡 WASD/方向键移动，靠近 NPC 点击攻击！买房子后可走进去躲开 NPC 🏠</div>
+          <span id="equipDisplay" class="equip-info" style="display:none;">⚔️ 木剑 (10伤害)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 战斗日志 -->
+    <div class="log-box" id="logBox"></div>
+  </div>
+
+  <!-- 右面板 -->
+  <div class="right-panel">
+    <!-- 商城 -->
+    <div class="panel-box">
+      <h3>🏪 商城</h3>
+      <div class="shop-list" id="shopList"></div>
+    </div>
+
+    <!-- 制造家具 -->
+    <div class="panel-box">
+      <h3>🔨 制造家具 <span class="sub">100🪙</span></h3>
+      <div class="craft-row">
+        <input type="text" id="furnitureName" placeholder="名称..." maxlength="10" />
+        <button class="btn btn-craft btn-sm" id="craftBtn">制造</button>
+      </div>
+      <div class="furniture-tags" id="furnitureTags"></div>
+    </div>
+
+    <!-- 背包 -->
+    <div class="panel-box">
+      <h3>🎒 背包 <span class="sub"><span id="bpCount">0</span>/50</span></h3>
+      <div class="backpack-grid" id="backpackGrid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 死亡弹窗 -->
+<div class="modal-overlay" id="deathModal">
+  <div class="modal">
+    <div class="big-icon">💀</div>
+    <h2 id="deathTitle">你阵亡了！</h2>
+    <p id="deathDesc">被 NPC 击败了...</p>
+    <button class="btn btn-gold" id="reviveBtn">🔁 复活 (50🪙)</button>
+    <button class="btn btn-gray" id="restartBtn">🔄 重新开始</button>
+  </div>
+</div>
+
+<!-- 拾取弹窗 -->
+<div class="modal-overlay" id="lootModal">
+  <div class="modal">
+    <div class="big-icon" id="lootIcon">💰</div>
+    <h2 id="lootTitle">掉落物！</h2>
+    <p id="lootDesc">获得了物品</p>
+    <button class="btn btn-blue" id="lootBtn">收下</button>
+  </div>
+</div>
+
+<script>
+// =========================
+// 🎮 游戏核心
+// =========================
+
+const STORAGE_KEY = 'cityTycoon2';
+const COLS = 10, ROWS = 8;
+
+// 装备模板
+const WEAPONS = {
+  wooden_sword:  { id: 'wooden_sword', name: '木剑',     icon: '🗡️', dmg: 10, price: 200 },
+  iron_sword:    { id: 'iron_sword',   name: '铁剑',     icon: '⚔️', dmg: 13, price: 500 },
+  enchanted:     { id: 'enchanted',    name: '魔剑',     icon: '🔮', dmg: 16, price: 900 },
+  legendary:     { id: 'legendary',    name: '传说之刃',  icon: '🗡️', dmg: 20, price: 1500 },
+};
+
+// 默认初始状态
+function defaultState() {
+  return {
+    hp: 3, maxHp: 3,
+    coin: 1000, diamond: 200,
+    map: new Array(COLS * ROWS).fill(null),  // null 或 { type: 'building'/'furniture', name, icon }
+    px: Math.floor(COLS / 2), py: Math.floor(ROWS / 2),
+    backpack: [],        // [{ id?, type, name, icon, count, ... }]
+    npcs: [],            // [{ id, x, y, hp, maxHp, isBoss, reward }]
+    weapon: null,        // 当前装备的武器 { id, name, icon, dmg }
+    furnitureCreated: [],
+    houses: { house1: false, house2: false },
+    placedHouse: null,
+    fragments: 0,
+    gameOver: false,
+    buildMode: false,
+    npcIdCounter: 0,
+  };
+}
+
+let G = defaultState();
+let moveTimer = null, npcTimer = null, spawnTimer = null;
+
+// =========================
+// 💾 存档
+// =========================
+function save() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(G)); } catch(e) {}
+}
+function load() {
+  try {
+    const d = localStorage.getItem(STORAGE_KEY);
+    if (d) {
+      const p = JSON.parse(d);
+      G = { ...defaultState(), ...p };
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}
+
+// =========================
+// 📝 日志
+// =========================
+function log(msg) {
+  const box = document.getElementById('logBox');
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.textContent = msg;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+  while (box.children.length > 30) box.removeChild(box.firstChild);
+}
+
+function setMsg(html, cls = '') {
+  const el = document.getElementById('gameMsg');
+  el.innerHTML = html;
+  el.className = 'msg ' + cls;
+}
+
+// =========================
+// 🗺️ 地图工具
+// =========================
+function xy2i(x, y) { return y * COLS + x; }
+function i2xy(i) { return { x: i % COLS, y: Math.floor(i / COLS) }; }
+function isInBounds(x, y) { return x >= 0 && x < COLS && y >= 0 && y < ROWS; }
+
+function isWalkable(x, y) {
+  if (!isInBounds(x, y)) return false;
+  const cell = G.map[xy2i(x, y)];
+  // 家具可以走，建筑（房子）也可以走——让玩家能躲进房子
+  // 但非建筑/家具类物品不行
+  if (cell && cell.type !== 'furniture' && cell.type !== 'building') return false;
+  // NPC 占位（玩家不能走到NPC身上）
+  if (G.npcs.some(n => n.x === x && n.y === y)) return false;
+  // 玩家占位
+  if (x === G.px && y === G.py) return false;
+  return true;
+}
+
+// 检查玩家是否躲在房子里（站在房子格子上）
+function isPlayerHidden() {
+  const cell = G.map[xy2i(G.px, G.py)];
+  return cell && cell.type === 'building';
+}
+
+function getCellContents(x, y) {
+  if (G.px === x && G.py === y) return 'player';
+  const npc = G.npcs.find(n => n.x === x && n.y === y);
+  if (npc) return npc;
+  return G.map[xy2i(x, y)];
+}
+
+// =========================
+// 🖼️ 渲染
+// =========================
+
+function renderAll() {
+  renderStats();
+  renderMap();
+  renderBackpack();
+  renderShop();
+  renderFurnitureTags();
+  renderEquipInfo();
+}
+
+function renderStats() {
+  document.getElementById('hpDisplay').textContent = G.hp;
+  document.getElementById('coinDisplay').textContent = G.coin.toLocaleString();
+  document.getElementById('diamondDisplay').textContent = G.diamond;
+  const atk = G.weapon ? G.weapon.dmg : 1;
+  document.getElementById('atkDisplay').textContent = atk;
+  const used = G.backpack.reduce((s, i) => s + (i.count || 1), 0);
+  document.getElementById('bpDisplay').textContent = `${used}/50`;
+  document.getElementById('bpCount').textContent = used;
+}
+
+function renderMap() {
+  const grid = document.getElementById('mapGrid');
+  grid.innerHTML = '';
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.x = x;
+      cell.dataset.y = y;
+
+      const content = getCellContents(x, y);
+      // 检查玩家是否在房子里
+      const playerHere = (x === G.px && y === G.py);
+      const cellData = G.map[xy2i(x, y)];
+      const isInHouse = playerHere && cellData && cellData.type === 'building';
+
+      if (content === 'player') {
+        if (isInHouse) {
+          // 玩家躲在房子里
+          const houseName = cellData.name;
+          if (houseName === '豪华别墅') {
+            cell.textContent = '🏰';
+            cell.style.fontSize = '28px';
+          } else {
+            cell.textContent = '🏠';
+            cell.style.fontSize = '28px';
+          }
+          cell.classList.add('has-building');
+          cell.style.background = 'rgba(251,191,36,0.15)';
+          cell.style.borderColor = 'rgba(251,191,36,0.4)';
+          cell.style.boxShadow = '0 0 20px rgba(251,191,36,0.3)';
+          // 显示躲在里面的小人标记
+          const badge = document.createElement('div');
+          badge.style.cssText = 'position:absolute;top:-4px;right:-4px;font-size:14px;filter:drop-shadow(0 0 4px rgba(251,191,36,0.5));';
+          badge.textContent = '🧑';
+          cell.appendChild(badge);
+          const safeLabel = document.createElement('div');
+          safeLabel.style.cssText = 'position:absolute;bottom:2px;font-size:8px;color:#fbbf24;background:rgba(0,0,0,0.5);padding:0 4px;border-radius:3px;';
+          safeLabel.textContent = '🏠安全';
+          cell.appendChild(safeLabel);
+        } else {
+          cell.classList.add('player-cell');
+          cell.textContent = '🧑';
+        }
+      } else if (content && content.type === 'npc') {
+        cell.classList.add('npc-cell');
+        if (content.isBoss) cell.classList.add('boss-cell');
+        cell.textContent = content.isBoss ? '👹' : '👾';
+        const hpBar = document.createElement('div');
+        hpBar.className = 'entity-hp';
+        hpBar.textContent = `❤️${content.hp}`;
+        cell.appendChild(hpBar);
+        cell.addEventListener('click', () => attackNpc(content.id));
+      } else if (content && content.type === 'building') {
+        cell.classList.add('has-building');
+        if (content.name === '小木屋') cell.textContent = '🏠';
+        else if (content.name === '豪华别墅') { cell.textContent = '🏰'; cell.style.borderColor = 'rgba(251,191,36,0.3)'; }
+        else cell.textContent = content.icon || '🏠';
+      } else if (content && content.type === 'furniture') {
+        cell.textContent = '🪑';
+        cell.style.fontSize = '16px';
+      } else {
+        cell.classList.add('buildable');
+      }
+
+      // 建筑模式点击放置
+      if (G.buildMode && !content && !G.npcs.some(n => n.x === x && n.y === y) && !(x === G.px && y === G.py)) {
+        cell.style.cursor = 'pointer';
+        cell.addEventListener('click', () => placeOnMap(x, y));
+      }
+
+      grid.appendChild(cell);
+    }
+  }
+}
+
+function renderBackpack() {
+  const grid = document.getElementById('backpackGrid');
+  grid.innerHTML = '';
+  const flat = [];
+  for (const item of G.backpack) {
+    if (!item) continue;
+    const count = item.count || 1;
+    for (let i = 0; i < Math.min(count, 50); i++) flat.push(item);
+  }
+  for (let i = 0; i < 50; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'bp-slot';
+    if (i < flat.length && flat[i]) {
+      const item = flat[i];
+      slot.classList.add('has-item');
+      // 检查是否是当前装备
+      if (G.weapon && item.weaponId === G.weapon.id && item.type === 'weapon') {
+        slot.classList.add('equipped');
+        const mark = document.createElement('span');
+        mark.className = 'eq-mark';
+        mark.textContent = 'E';
+        slot.appendChild(mark);
+      }
+      if (item.type === 'house1') slot.textContent = '🏠';
+      else if (item.type === 'house2') slot.textContent = '🏰';
+      else if (item.type === 'fragment') slot.textContent = '🪨';
+      else if (item.type === 'weapon') slot.textContent = item.icon || '🗡️';
+      else if (item.type === 'furniture') slot.textContent = '🪑';
+      else slot.textContent = '📦';
+
+      const tip = document.createElement('div');
+      tip.className = 'bp-tip';
+      let tipText = item.name || '未知';
+      if (item.type === 'weapon') tipText += ` (${item.dmg}伤害)`;
+      if (item.count && item.count > 1) tipText += ` x${item.count}`;
+      if (G.weapon && item.weaponId === G.weapon.id && item.type === 'weapon') tipText += ' [已装备]';
+      tip.textContent = tipText;
+      slot.appendChild(tip);
+
+      // 武器点击装备
+      if (item.type === 'weapon') {
+        slot.style.cursor = 'pointer';
+        slot.addEventListener('click', () => equipWeapon(item.weaponId));
+      }
+    }
+    grid.appendChild(slot);
+  }
+}
+
+function renderShop() {
+  const list = document.getElementById('shopList');
+  list.innerHTML = '';
+
+  // 房子
+  list.appendChild(createShopItem('🏠', '小木屋', '可以住人，占地1格', '🪙 800', () => buyHouse('house1', 800), G.houses.house1));
+  list.appendChild(createShopItem('🏰', '豪华别墅', '回满生命值', '🪙 1000', () => buyHouse('house2', 1000), G.houses.house2));
+
+  // 武器
+  for (const [id, wp] of Object.entries(WEAPONS)) {
+    const owned = G.backpack.some(i => i.type === 'weapon' && i.weaponId === id);
+    list.appendChild(createShopItem(
+      wp.icon, wp.name, `${wp.dmg} 伤害`, `🪙 ${wp.price}`,
+      () => buyWeapon(id), owned
+    ));
+  }
+
+  // 碎片兑换
+  const exchDiv = document.createElement('div');
+  exchDiv.className = 'shop-item';
+  exchDiv.innerHTML = `<div class="info"><div class="name">🪨 碎片兑换</div><div class="desc">一个碎片换500金币</div></div>
+    <div class="price" style="font-size:11px;color:rgba(255,255,255,0.4);">持有: ${G.fragments}</div>
+    <button class="btn-buy" id="exchangeBtn" ${G.fragments < 1 ? 'disabled' : ''}>兑换</button>`;
+  list.appendChild(exchDiv);
+  document.getElementById('exchangeBtn')?.addEventListener('click', exchangeFragment);
+}
+
+function createShopItem(icon, name, desc, price, onBuy, owned) {
+  const div = document.createElement('div');
+  div.className = 'shop-item';
+  div.innerHTML = `
+    <div class="info"><div class="name">${icon} ${name}</div><div class="desc">${desc}</div></div>
+    <div class="price">${price}</div>
+    <button class="btn-buy" ${owned ? 'disabled' : ''}>${owned ? '✓ 已拥有' : '购买'}</button>`;
+  div.querySelector('.btn-buy').addEventListener('click', onBuy);
+  return div;
+}
+
+function renderFurnitureTags() {
+  const c = document.getElementById('furnitureTags');
+  if (G.furnitureCreated.length === 0) {
+    c.innerHTML = '<span style="font-size:11px;color:rgba(255,255,255,0.2);">还没有家具</span>';
+    return;
+  }
+  c.innerHTML = G.furnitureCreated.map(n => `<span class="tag">🪑 ${n}</span>`).join('');
+}
+
+function renderEquipInfo() {
+  const el = document.getElementById('equipDisplay');
+  if (G.weapon) {
+    el.style.display = 'inline-flex';
+    el.textContent = `${G.weapon.icon} ${G.weapon.name} (${G.weapon.dmg}伤害)`;
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+// =========================
+// 🏪 商城购买
+// =========================
+
+function buyHouse(type, price) {
+  if (G.coin < price) { setMsg('金币不够！'); return; }
+  if (G.houses[type]) { setMsg('已经拥有这个房子了'); return; }
+  G.coin -= price;
+  G.houses[type] = true;
+  log(`🏠 购买了${type === 'house1' ? '小木屋' : '豪华别墅'}！去地图上放置吧`);
+  setMsg(`✅ 购买了${type === 'house1' ? '小木屋' : '豪华别墅'}！点击空地放置`);
+  renderAll();
+  save();
+}
+
+function buyWeapon(id) {
+  const wp = WEAPONS[id];
+  if (!wp) return;
+  if (G.coin < wp.price) { setMsg(`金币不够！${wp.name}需要${wp.price}🪙`); return; }
+  if (G.backpack.some(i => i.type === 'weapon' && i.weaponId === id)) { setMsg('已拥有此武器'); return; }
+  if (getBpUsed() >= 50) { setMsg('背包已满！'); return; }
+  G.coin -= wp.price;
+  G.backpack.push({ type: 'weapon', weaponId: id, name: wp.name, icon: wp.icon, dmg: wp.dmg });
+  // 如果没装备武器，自动装备
+  if (!G.weapon) equipWeapon(id);
+  log(`🗡️ 购买了 ${wp.name}！`);
+  setMsg(`✅ 获得了 ${wp.icon} ${wp.name}！`);
+  renderAll();
+  save();
+}
+
+function exchangeFragment() {
+  if (G.fragments < 1) return;
+  G.fragments--;
+  G.coin += 500;
+  // 更新背包中的碎片计数
+  const frag = G.backpack.find(i => i.type === 'fragment');
+  if (frag) { frag.count = (frag.count || 1) - 1; if (frag.count <= 0) G.backpack = G.backpack.filter(i => i !== frag); }
+  log('🪨 兑换碎片获得 500 金币！');
+  setMsg('🪨 碎片兑换成功 +500🪙');
+  renderAll();
+  save();
+}
+
+function getBpUsed() {
+  return G.backpack.reduce((s, i) => s + (i.count || 1), 0);
+}
+
+// =========================
+// ⚔️ 装备系统
+// =========================
+
+function equipWeapon(id) {
+  const item = G.backpack.find(i => i.type === 'weapon' && i.weaponId === id);
+  if (!item) return;
+  G.weapon = { id: item.weaponId, name: item.name, icon: item.icon, dmg: item.dmg };
+  log(`⚔️ 装备了 ${item.icon} ${item.name}（${item.dmg}伤害）`);
+  setMsg(`⚔️ 已装备 ${item.name}（${item.dmg}伤害）`);
+  renderAll();
+  save();
+}
+
+// =========================
+// 🏗️ 建筑模式
+// =========================
+
+document.getElementById('btnMode').addEventListener('click', () => {
+  G.buildMode = !G.buildMode;
+  document.getElementById('btnMode').textContent = G.buildMode ? '✨ 游戏模式' : '🏗️ 建筑模式';
+  setMsg(G.buildMode ? '🏗️ 建筑模式 - 点击空地放置房子或家具' : '🎮 游戏模式 - WASD移动，靠近NPC点击攻击，可躲进房子🏠');
+  renderMap();
+});
+
+function placeOnMap(x, y) {
+  // 检查房子
+  if (G.houses.house1 && !G.placedHouse) {
+    G.map[xy2i(x, y)] = { type: 'building', name: '小木屋', icon: '🏠' };
+    G.placedHouse = 'house1';
+    log(`🏠 在地图 (${x+1},${y+1}) 放置了小木屋`);
+    setMsg('🏠 小木屋已放置！');
+    renderAll();
+    save();
+    return;
+  }
+  if (G.houses.house2 && !G.placedHouse) {
+    G.map[xy2i(x, y)] = { type: 'building', name: '豪华别墅', icon: '🏰' };
+    G.placedHouse = 'house2';
+    log(`🏰 在地图 (${x+1},${y+1}) 放置了豪华别墅`);
+    setMsg('🏰 豪华别墅已放置！它会每回合回满你的生命！');
+    renderAll();
+    save();
+    return;
+  }
+
+  // 检查背包里的家具
+  const furn = G.backpack.find(i => i.type === 'furniture' && (!i.placed || false));
+  if (!furn) { setMsg('背包里没有可放置的物品。先买房子或制造家具吧！'); return; }
+  G.map[xy2i(x, y)] = { type: 'furniture', name: furn.name, icon: '🪑' };
+  if (furn.count && furn.count > 1) { furn.count--; }
+  else { G.backpack = G.backpack.filter(i => i !== furn); }
+  log(`🪑 放置了 "${furn.name}"`);
+  setMsg(`🪑 已放置 ${furn.name}`);
+  renderAll();
+  save();
+}
+
+// =========================
+// 🔨 制造家具
+// =========================
+
+document.getElementById('craftBtn').addEventListener('click', craftFurniture);
+document.getElementById('furnitureName').addEventListener('keydown', e => {
+  if (e.key === 'Enter') craftFurniture();
+});
+
+function craftFurniture() {
+  const input = document.getElementById('furnitureName');
+  const name = input.value.trim();
+  if (!name) { setMsg('请输入家具名称！'); return; }
+  if (name.length > 10) { setMsg('名称不超过10个字'); return; }
+  if (G.coin < 100) { setMsg('金币不够！需要100🪙'); return; }
+  if (getBpUsed() >= 50) { setMsg('背包满了！'); return; }
+
+  G.coin -= 100;
+  const exist = G.backpack.find(i => i.type === 'furniture' && i.name === name);
+  if (exist && exist.count) { exist.count++; }
+  else { G.backpack.push({ type: 'furniture', name, count: 1 }); }
+  if (!G.furnitureCreated.includes(name)) G.furnitureCreated.push(name);
+  input.value = '';
+  log(`🪚 制造了家具 "${name}"`);
+  setMsg(`🪚 ${name} 制造完成！`);
+  renderAll();
+  save();
+}
+
+// =========================
+// 🧑 玩家移动
+// =========================
+
+function movePlayer(dx, dy) {
+  if (G.gameOver) return;
+  const nx = G.px + dx, ny = G.py + dy;
+  if (!isWalkable(nx, ny)) return;
+  G.px = nx; G.py = ny;
+
+  // 检查是否进入了房子（躲藏状态）
+  const cell = G.map[xy2i(nx, ny)];
+  if (cell && cell.type === 'building') {
+    setMsg(`🏠 你躲进了 ${cell.name}，NPC 伤害不到你！`);
+    // 豪华别墅自动回血
+    if (cell.name === '豪华别墅' && G.hp < G.maxHp) {
+      G.hp = G.maxHp;
+      log('🏰 豪华别墅回血效果：生命已回满！');
+    }
+  } else {
+    // 从房子出来
+    const prevCell = G.map[xy2i(G.px - dx, G.py - dy)];
+    if (prevCell && prevCell.type === 'building') {
+      setMsg('🏃 你走出了房子，小心 NPC！');
+    }
+  }
+
+  renderMap();
+  renderStats();
+  npcTurn();
+  save();
+}
+
+// 键盘控制
+document.addEventListener('keydown', e => {
+  if (G.buildMode) return;
+  switch(e.key) {
+    case 'w': case 'W': case 'ArrowUp':    e.preventDefault(); movePlayer(0, -1); break;
+    case 's': case 'S': case 'ArrowDown':  e.preventDefault(); movePlayer(0, 1); break;
+    case 'a': case 'A': case 'ArrowLeft':  e.preventDefault(); movePlayer(-1, 0); break;
+    case 'd': case 'D': case 'ArrowRight': e.preventDefault(); movePlayer(1, 0); break;
+  }
+});
+
+// 点击地图移动（小屏/触屏支持）
+document.getElementById('mapGrid').addEventListener('click', e => {
+  if (G.buildMode) return;
+  const cell = e.target.closest('.cell');
+  if (!cell) return;
+  const x = parseInt(cell.dataset.x), y = parseInt(cell.dataset.y);
+  if (isNaN(x)) return;
+  // 如果是NPC或建筑就不移动
+  const content = getCellContents(x, y);
+  if (content === 'player') return;
+  if (content && typeof content === 'object') return;
+  if (!isWalkable(x, y)) return;
+  // 简单A* 寻路... 简化版：一步一步走
+  const dx = Math.sign(x - G.px), dy = Math.sign(y - G.py);
+  if (dx !== 0) movePlayer(dx, 0);
+  else if (dy !== 0) movePlayer(0, dy);
+});
+
+// =========================
+// 💖 豪华别墅回血
+// =========================
+
+function checkVillaRegen() {
+  const hasVilla = G.map.some(c => c && c.type === 'building' && c.name === '豪华别墅');
+  if (hasVilla && G.hp > 0 && G.hp < G.maxHp) {
+    G.hp = G.maxHp;
+    log('🏰 豪华别墅回血效果：生命已回满！');
+    renderStats();
+    save();
+  }
+}
+
+// =========================
+// 👾 NPC 系统
+// =========================
+
+function spawnNpc() {
+  if (G.gameOver) return;
+  // 50% 概率刷新
+  if (Math.random() > 0.5) {
+    scheduleSpawn();
+    return;
+  }
+
+  // 找一个远离玩家的空位
+  let attempts = 0;
+  let x, y;
+  do {
+    x = Math.floor(Math.random() * COLS);
+    y = Math.floor(Math.random() * ROWS);
+    attempts++;
+  } while (
+    (Math.abs(x - G.px) + Math.abs(y - G.py) < 3 || !isWalkable(x, y)) &&
+    attempts < 50
+  );
+
+  if (attempts >= 50 || !isWalkable(x, y)) {
+    scheduleSpawn();
+    return;
+  }
+
+  const isBoss = Math.random() < 0.15;
+  const hp = isBoss ? 4 + Math.floor(Math.random() * 4) : 1 + Math.floor(Math.random() * 3);
+  const reward = isBoss ? (Math.random() < 0.5 ? 100 : 10) : (Math.random() < 0.5 ? 100 : 10);
+  // 偶尔掉落武器（20% 概率）
+  const dropWeapon = Math.random() < 0.2;
+
+  const npc = {
+    id: G.npcIdCounter++,
+    type: 'npc',
+    x, y, hp, maxHp: hp, isBoss, reward,
+    dropWeapon: dropWeapon ? 10 + Math.floor(Math.random() * 11) : 0, // 10-20 伤害
+  };
+  G.npcs.push(npc);
+  log(`👾 ${isBoss ? 'BOSS' : 'NPC'} 出现在 (${x+1},${y+1})！`);
+  setMsg(`⚠️ ${isBoss ? '👹 BOSS' : '👾 NPC'} 出现在地图上！`);
+  renderMap();
+  save();
+  scheduleSpawn();
+}
+
+function scheduleSpawn() {
+  if (spawnTimer) clearTimeout(spawnTimer);
+  const delay = 4000 + Math.random() * 5000;
+  spawnTimer = setTimeout(spawnNpc, delay);
+}
+
+function npcTurn() {
+  if (G.gameOver) return;
+
+  const hidden = isPlayerHidden();
+
+  for (const npc of G.npcs) {
+    // 如果玩家躲在房子里，NPC 不攻击，在房子外徘徊
+    if (hidden) {
+      const moves = [
+        {dx: 1, dy: 0}, {dx: -1, dy: 0},
+        {dx: 0, dy: 1}, {dx: 0, dy: -1},
+      ].sort(() => Math.random() - 0.5);
+      for (const m of moves) {
+        const nx = npc.x + m.dx, ny = npc.y + m.dy;
+        if (nx === G.px && ny === G.py) continue;
+        if (isWalkable(nx, ny) && !G.npcs.some(n => n.id !== npc.id && n.x === nx && n.y === ny)) {
+          npc.x = nx; npc.y = ny; break;
+        }
+      }
+      continue;
+    }
+
+    // NPC 向玩家移动（曼哈顿距离）
+    const dx = Math.sign(G.px - npc.x);
+    const dy = Math.sign(G.py - npc.y);
+
+    // 如果相邻，攻击玩家
+    if (Math.abs(G.px - npc.x) + Math.abs(G.py - npc.y) === 1) {
+      // 攻击玩家
+      G.hp--;
+      log(`💥 ${npc.isBoss ? 'BOSS' : 'NPC'} 攻击了你！-1❤️`);
+      setMsg(`💥 ${npc.isBoss ? '👹 BOSS' : '👾 NPC'} 对你造成了 1 点伤害！`, 'danger');
+
+      if (G.hp <= 0) {
+        G.hp = 0;
+        renderAll();
+        save();
+        gameOver();
+        return;
+      }
+      renderStats();
+      save();
+      continue;
+    }
+
+    // 尝试移动
+    const moves = [{dx, dy}];
+    // 随机打乱
+    if (Math.random() < 0.5) moves.push({dx: dy, dy: dx}, {dx: -dy, dy: -dx});
+    else moves.push({dx: -dy, dy: -dx}, {dx: dy, dy: dx});
+
+    for (const m of moves) {
+      const nx = npc.x + m.dx, ny = npc.y + m.dy;
+      if (nx === G.px && ny === G.py) continue; // 不走到玩家位置
+      if (isWalkable(nx, ny) && !G.npcs.some(n => n.id !== npc.id && n.x === nx && n.y === ny)) {
+        npc.x = nx;
+        npc.y = ny;
+        break;
+      }
+    }
+  }
+
+  renderMap();
+  save();
+}
+
+// =========================
+// ⚔️ 玩家攻击NPC
+// =========================
+
+function attackNpc(npcId) {
+  if (G.gameOver) return;
+  const npc = G.npcs.find(n => n.id === npcId);
+  if (!npc) return;
+
+  // 检查距离（必须相邻）
+  const dist = Math.abs(G.px - npc.x) + Math.abs(G.py - npc.y);
+  if (dist > 1) {
+    setMsg('距离太远，靠近 NPC 才能攻击！');
+    return;
+  }
+
+  const dmg = G.weapon ? G.weapon.dmg : 1;
+  npc.hp -= dmg;
+  log(`⚔️ 你对${npc.isBoss ? 'BOSS' : 'NPC'}造成了 ${dmg} 点伤害！`);
+  setMsg(`⚔️ 造成了 ${dmg} 点伤害！${npc.isBoss ? '👹' : '👾'}剩余 HP: ${Math.max(0, npc.hp)}`);
+
+  if (npc.hp <= 0) {
+    // NPC 死亡
+    const reward = npc.reward;
+    G.coin += reward;
+    log(`💥 ${npc.isBoss ? 'BOSS' : 'NPC'} 被击败！获得 ${reward}🪙`);
+
+    // 移除 NPC
+    G.npcs = G.npcs.filter(n => n.id !== npcId);
+
+    let msg = `🎉 击败${npc.isBoss ? 'BOSS' : 'NPC'}！获得 ${reward}🪙`;
+
+    // 掉落武器？
+    if (npc.dropWeapon > 0 && getBpUsed() < 50) {
+      const wpDmg = npc.dropWeapon;
+      const wpNames = ['短匕', '铜剑', '铁刃', '钢刀', '弯刀'];
+      const wpName = wpNames[Math.floor(Math.random() * wpNames.length)];
+      const wpIcon = '🗡️';
+      const wpId = 'drop_' + Date.now() + '_' + Math.random();
+      G.backpack.push({ type: 'weapon', weaponId: wpId, name: wpName, icon: wpIcon, dmg: wpDmg });
+      msg += ` 🎁 掉落了武器 "${wpName}" (${wpDmg}伤害)！`;
+      log(`🎁 掉落武器 ${wpName}（${wpDmg}伤害）`);
+      showLootModal(wpIcon, '武器掉落！', `获得了 "${wpName}"（${wpDmg} 伤害）`);
+    }
+
+    setMsg(msg);
+    renderAll();
+    save();
+  } else {
+    renderMap();
+    renderStats();
+    save();
+  }
+}
+
+// =========================
+// 💀 游戏结束
+// =========================
+
+function gameOver() {
+  G.gameOver = true;
+  if (spawnTimer) clearTimeout(spawnTimer);
+  document.getElementById('deathTitle').textContent = '💀 你阵亡了！';
+  document.getElementById('deathDesc').textContent = `当前金币: ${G.coin} | 持有 ${G.weapon ? G.weapon.name : '无'}武器`;
+  document.getElementById('deathModal').classList.add('show');
+}
+
+document.getElementById('reviveBtn').addEventListener('click', () => {
+  if (G.coin >= 50) {
+    G.coin -= 50;
+    G.hp = G.maxHp;
+    G.gameOver = false;
+    document.getElementById('deathModal').classList.remove('show');
+    log('✨ 已复活！');
+    setMsg('❤️ 复活了，继续战斗！');
+    renderAll();
+    save();
+    scheduleSpawn();
+  } else {
+    document.getElementById('deathDesc').textContent = '金币不够... 点击重新开始吧';
+  }
+});
+
+document.getElementById('restartBtn').addEventListener('click', () => {
+  document.getElementById('deathModal').classList.remove('show');
+  G = defaultState();
+  document.getElementById('btnMode').textContent = '🏗️ 建筑模式';
+  G.buildMode = false;
+  log('🔄 游戏已重置');
+  setMsg('新的开始！建造你的都市吧 🏙️');
+  renderAll();
+  save();
+  scheduleSpawn();
+});
+
+// =========================
+// 🎁 拾取弹窗
+// =========================
+
+function showLootModal(icon, title, desc) {
+  document.getElementById('lootIcon').textContent = icon;
+  document.getElementById('lootTitle').textContent = title;
+  document.getElementById('lootDesc').textContent = desc;
+  document.getElementById('lootModal').classList.add('show');
+}
+
+document.getElementById('lootBtn').addEventListener('click', () => {
+  document.getElementById('lootModal').classList.remove('show');
+});
+
+// =========================
+// 🚀 初始化
+// =========================
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (load()) {
+    if (G.gameOver) { G.gameOver = false; G.hp = G.maxHp; }
+    log('📂 读取存档成功！');
+  } else {
+    log('🏙️ 欢迎来到都市大亨！WASD/方向键移动，靠近 NPC 点击攻击，可躲进房子！');
+  }
+
+  // 修复地图大小
+  if (G.map.length !== COLS * ROWS) {
+    const newMap = new Array(COLS * ROWS).fill(null);
+    for (let i = 0; i < Math.min(G.map.length, COLS * ROWS); i++) newMap[i] = G.map[i];
+    G.map = newMap;
+  }
+
+  renderAll();
+  checkVillaRegen();
+  scheduleSpawn();
+
+  // 每3秒NPC移动一次
+  setInterval(() => {
+    if (!G.gameOver) {
+      npcTurn();
+      checkVillaRegen();
+    }
+  }, 3000);
+
+  // 自动存档
+  setInterval(save, 30000);
+
+  setMsg('💡 WASD/方向键移动，靠近 NPC 点击攻击！买房子后可走进去躲开 NPC 🏠');
+});
+</script>
+</body>
+</html>
