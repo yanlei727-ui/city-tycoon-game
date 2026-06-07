@@ -416,6 +416,101 @@
     0% { box-shadow: 0 0 20px rgba(251,191,36,0.5); }
     100% { box-shadow: 0 0 0 rgba(251,191,36,0); }
   }
+/* ===== 触屏控制（手机适配） ===== */
+@media (max-width: 768px) {
+  .main-layout { padding: 8px; gap: 8px; height: auto; padding-bottom: 210px; }
+  .right-panel { width: 100%; max-height: 250px; }
+  .map-grid { gap: 3px; }
+  .cell { font-size: 14px; min-height: 24px; }
+  .top-bar { padding: 6px 8px; flex-wrap: wrap; }
+  .top-bar .title { font-size: 14px; }
+  .stat { font-size: 10px; padding: 2px 6px; }
+  .info-bar { flex-direction: column; gap: 4px; padding: 8px 10px; }
+  .info-bar .msg { font-size: 12px; }
+  .panel-box { padding: 8px; }
+  .panel-box h3 { font-size: 13px; }
+  .shop-item { padding: 5px 8px; }
+  .shop-item .name { font-size: 12px; }
+  .shop-item .desc { font-size: 9px; }
+  .log-box { max-height: 60px; }
+  .map-wrapper { padding: 10px; }
+  .map-header .title { font-size: 12px; }
+  .furniture-tags .tag { font-size: 9px; padding: 1px 5px; }
+}
+
+/* 触屏方向键 & 攻击按钮 */
+.touch-controls {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 80;
+  padding: 12px 20px max(12px, env(safe-area-inset-bottom)) 20px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.75) 40%);
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
+}
+.touch-controls > * { pointer-events: auto; }
+@media (max-width: 768px) {
+  .touch-controls { display: flex; }
+}
+
+.dpad {
+  display: grid;
+  grid-template-areas:
+    ". up ."
+    "left . right"
+    ". down .";
+  grid-template-columns: repeat(3, 52px);
+  grid-template-rows: repeat(3, 52px);
+  gap: 4px;
+}
+.dpad-btn {
+  border: none; border-radius: 12px;
+  background: rgba(255,255,255,0.1);
+  color: #fff; font-size: 20px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.06);
+  transition: background 0.08s;
+  user-select: none;
+}
+.dpad-btn:active, .dpad-btn.active {
+  background: rgba(255,255,255,0.25);
+  transform: scale(0.95);
+}
+.dpad-up { grid-area: up; }
+.dpad-left { grid-area: left; }
+.dpad-right { grid-area: right; }
+.dpad-down { grid-area: down; }
+
+.attack-area {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.attack-btn-touch {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #fff; font-size: 24px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 4px 20px rgba(239,68,68,0.4);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.08s;
+  user-select: none;
+}
+.attack-btn-touch:active, .attack-btn-touch.active {
+  transform: scale(0.9);
+}
+.attack-label {
+  font-size: 9px;
+  color: rgba(255,255,255,0.25);
+}
 </style>
 </head>
 <body>
@@ -888,6 +983,8 @@ document.getElementById('btnMode').addEventListener('click', () => {
   G.buildMode = !G.buildMode;
   document.getElementById('btnMode').textContent = G.buildMode ? '✨ 游戏模式' : '🏗️ 建筑模式';
   setMsg(G.buildMode ? '🏗️ 建筑模式 - 点击空地放置房子或家具' : '🎮 游戏模式 - WASD移动，靠近NPC点击攻击，可躲进房子🏠');
+  const tc = document.getElementById('touchControls');
+  if (tc) tc.style.display = G.buildMode ? 'none' : '';
   renderMap();
 });
 
@@ -1261,6 +1358,68 @@ document.getElementById('lootBtn').addEventListener('click', () => {
 });
 
 // =========================
+// 📱 触屏控制 - 方向键 & 攻击
+// =========================
+
+// D-pad 方向键（支持长按连发 + 触屏/鼠标）
+document.querySelectorAll('.dpad-btn').forEach(btn => {
+  const [dx, dy] = btn.dataset.dir.split(',').map(Number);
+  let holdTimer = null, moveInterval = null;
+
+  function doMove() {
+    if (G.gameOver || G.buildMode) return;
+    movePlayer(dx, dy);
+  }
+
+  function startMove(e) {
+    e.preventDefault();
+    btn.classList.add('active');
+    doMove();
+    holdTimer = setTimeout(() => {
+      moveInterval = setInterval(doMove, 150);
+    }, 250);
+  }
+
+  function stopMove(e) {
+    e.preventDefault();
+    btn.classList.remove('active');
+    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+    if (moveInterval) { clearInterval(moveInterval); moveInterval = null; }
+  }
+
+  btn.addEventListener('touchstart', startMove, { passive: false });
+  btn.addEventListener('touchend', stopMove, { passive: false });
+  btn.addEventListener('touchcancel', stopMove, { passive: false });
+  btn.addEventListener('mousedown', startMove);
+  btn.addEventListener('mouseup', stopMove);
+  btn.addEventListener('mouseleave', stopMove);
+});
+
+// 攻击按钮 - 自动寻找最近的相邻 NPC
+(function() {
+  const btn = document.getElementById('touchAttackBtn');
+  function doAttack(e) {
+    if (e) e.preventDefault();
+    btn.classList.add('active');
+    setTimeout(() => btn.classList.remove('active'), 150);
+    if (G.gameOver || G.buildMode) {
+      setMsg('现在不能攻击！');
+      return;
+    }
+    const adjacent = G.npcs.filter(n =>
+      Math.abs(G.px - n.x) + Math.abs(G.py - n.y) === 1
+    );
+    if (adjacent.length === 0) {
+      setMsg('👾 附近没有敌人，靠近 NPC 再攻击！');
+      return;
+    }
+    attackNpc(adjacent[0].id);
+  }
+  btn.addEventListener('touchstart', doAttack, { passive: false });
+  btn.addEventListener('mousedown', doAttack);
+})();
+
+// =========================
 // 🚀 初始化
 // =========================
 
@@ -1297,5 +1456,18 @@ document.addEventListener('DOMContentLoaded', () => {
   setMsg('💡 WASD/方向键移动，靠近 NPC 点击攻击！买房子后可走进去躲开 NPC 🏠');
 });
 </script>
+<!-- 📱 触屏控制 -->
+<div class="touch-controls" id="touchControls">
+  <div class="dpad">
+    <button class="dpad-btn dpad-up" data-dir="0,-1">↑</button>
+    <button class="dpad-btn dpad-left" data-dir="-1,0">←</button>
+    <button class="dpad-btn dpad-right" data-dir="1,0">→</button>
+    <button class="dpad-btn dpad-down" data-dir="0,1">↓</button>
+  </div>
+  <div class="attack-area">
+    <button class="attack-btn-touch" id="touchAttackBtn">⚔️</button>
+    <span class="attack-label">攻击</span>
+  </div>
+</div>
 </body>
 </html>
